@@ -2,23 +2,70 @@
 # Среднее количество правильных ответов студента по предмету
 
 ROOT_DIR="$1"
-SUBJECT="$2"
-STUDENT="$3"
+GROUP="$2"
+SUBJECT="$3"
+STUDENT="$4"
 
-if [ -z "$ROOT_DIR" ] || [ -z "$SUBJECT" ] || [ -z "$STUDENT" ]; then
-  echo "Использование: ./student_average.sh <путь_к_файлам_ЛР3> <название_предмета> <фамилия>"
-  exit 1
+if [ -z "$ROOT_DIR" ] || [ -z "$STUDENT" ]; then
+    echo "Использование: ./student_average.sh <путь_к_файлам_ЛР3> [группа] [предмет] <фамилия>"
+    exit 1
 fi
 
-SUBJ_DIR=$(find "$ROOT_DIR" -type d -name "$SUBJECT" 2>/dev/null | head -n1)
-if [ -z "$SUBJ_DIR" ]; then
-  echo "Предмет $SUBJECT не найден."
-  exit 1
+echo
+echo "=== Средний результат студента ==="
+echo "Студент: $STUDENT"
+if [ -n "$GROUP" ]; then
+    echo "Группа: $GROUP"
+else
+    echo "Группа: все группы"
+fi
+if [ -n "$SUBJECT" ]; then
+    echo "Предмет: $SUBJECT"
+else
+    echo "Предмет: оба предмета"
+fi
+echo
+
+# Находим файлы тестов с учетом предмета и папки tests
+if [ -n "$SUBJECT" ]; then
+    TEST_FILES=$(find "$ROOT_DIR" -type f -path "*/$SUBJECT/tests/TEST-*" 2>/dev/null)
+else
+    TEST_FILES=$(find "$ROOT_DIR" -type f \( -path "*/Поп-Культуроведение/tests/TEST-*" -o -path "*/Цирковое_Дело/tests/TEST-*" \) 2>/dev/null)
 fi
 
-awk -F';' -v name="$STUDENT" '
-  $2==name && $4~/^[0-9]+$/ { sum+=$4; n++ }
-  END {
-    if (n>0) printf("Средний результат %s по предмету: %.2f (из %d тестов)\n", name, sum/n, n)
-    else print "Нет данных для студента", name
-  }' $(find "$SUBJ_DIR" -type f -name "TEST-*")
+if [ -z "$TEST_FILES" ]; then
+    echo "Файлы тестов не найдены!"
+    exit 1
+fi
+
+awk -F';' -v name="$STUDENT" -v grp="$GROUP" '
+{
+    if ($2==name && $4~/^[0-9]+$/) {
+        if (grp=="" || $1==grp) {
+            sum+=$4
+            n++
+            # Собираем информацию о предметах
+            subject = FILENAME
+            sub(".*/", "", subject)
+            sub("/tests/TEST-.*", "", subject)
+            subjects[subject]++
+        }
+    }
+}
+END {
+    if (n>0) {
+        printf("Средний результат %s: %.2f правильных ответов\n", name, sum/n)
+        printf("Всего тестов: %d\n", n)
+        printf("Предметы: ")
+        first=1
+        for (subj in subjects) {
+            if (!first) printf(", ")
+            printf("%s", subj)
+            first=0
+        }
+        print ""
+    } else {
+        print "Нет данных для студента", name
+        if (grp != "") print "Проверьте правильность группы и фамилии"
+    }
+}' $TEST_FILES
