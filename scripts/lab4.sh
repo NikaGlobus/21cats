@@ -9,11 +9,19 @@ OUTPUT_FILE=""
 SUBJECT=""
 
 # ---------- Ввод пути и группы ----------
-read -p "Введите путь к файловой системе преподавателя (например ./labfiles): " ROOT_DIR
-if [ ! -d "$ROOT_DIR" ]; then
-    echo "Ошибка: путь '$ROOT_DIR' не существует!"
-    exit 1
-fi
+while true; do
+    read -p "Введите путь к файловой системе преподавателя (например ./labfiles): " input_dir
+    if [ -z "$input_dir" ]; then
+        echo "Ошибка: путь не может быть пустым! Попробуйте снова."
+        continue
+    fi
+    if [ ! -d "$input_dir" ]; then
+        echo "Ошибка: путь '$input_dir' не существует! Попробуйте снова."
+        continue
+    fi
+    ROOT_DIR="$input_dir"
+    break
+done
 
 # Цикл ввода группы: пусто = все группы, иначе проверяем формат A-09-22 или Ae-21-21 (A или Ae)
 while true; do
@@ -80,7 +88,7 @@ show_menu() {
     echo "2. Лучший результат по тестам"
     echo "3. Min/Max посещаемость занятий"
     echo "4. Средняя оценка студента"
-    echo "5. Полный анализ (lab4_analysis)"
+    echo "5. Полный анализ"
     echo "6. Сменить группу/предмет/вывод"
     echo "7. Выход"
     echo "-----------------------------------------------"
@@ -176,36 +184,32 @@ while true; do
     read -p "Выберите пункт меню (1-7): " choice
     echo
 
-    case $choice in
-        1)
-            call_script "worst_attendance.sh"
-            ;;
-        2)
-            call_script "best_results.sh"
-            ;;
-        3)
-            call_script "class_extremes.sh"
-            ;;
-        4)
-            read -p "Введите фамилию студента: " STUDENT_NAME
-            call_script "student_average.sh" "$STUDENT_NAME"
-            ;;
-        5)
-            call_script "lab4_analysis.sh"
-            ;;
-        6)
-            change_settings
-            ;;
-        7)
-            echo "Выход из программы..."
-            exit 0
-            ;;
-        *)
-            echo "Ошибка: выберите пункт от 1 до 7."
-            ;;
-    esac
+    while true; do
+        case $choice in
+            1) call_script "worst_attendance.sh" ;;
+            2) call_script "best_results.sh" ;;
+            3) call_script "class_extremes.sh" ;;
+            4)
+                read -p "Введите фамилию студента: " STUDENT_NAME
+                call_script "student_average.sh" "$STUDENT_NAME"
+                ;;
+            5) call_script "lab4_analysis.sh" ;;
+            6)
+                change_settings
+                break        # выход во внешний цикл — показать меню заново
+                ;;
+            7)
+                echo "Выход из программы..."
+                exit 0
+                ;;
+            *)
+                echo "Ошибка: выберите пункт от 1 до 7."
+                ;;
+        esac
 
-    echo
-    echo "-----------------------------------------------"
-    read -p "Нажмите Enter для продолжения..."
+        echo
+        echo "-----------------------------------------------"
+        read -p "Введите следующую команду (1-7): " choice
+        echo
+    done
 done
